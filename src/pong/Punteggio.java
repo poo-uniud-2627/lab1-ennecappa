@@ -35,13 +35,14 @@ public class Punteggio {
      * Promette: una partita 0 a 0, non finita, senza vincitore e con la storia vuota.
      */
     public Punteggio(int puntiPerVincere, int scartoMinimo) {
-        if(puntiPerVincere >= 1 && scartoMinimo >= 1){
-            this.puntiPerVincere = puntiPerVincere;
-            this.scartoMinimo = scartoMinimo; 
-            puntiDestra = 0;
-            puntiSinistra = 0; 
-            vincitore = null; 
+        if (puntiPerVincere < 1 || scartoMinimo < 1) {
+            throw new IllegalArgumentException("I punti per vincere e lo scarto minimo devono essere almeno 1");
         }
+        this.puntiPerVincere = puntiPerVincere;
+        this.scartoMinimo = scartoMinimo; 
+        puntiDestra = 0;
+        puntiSinistra = 0; 
+        vincitore = null; 
     }
 
     /**
@@ -53,18 +54,21 @@ public class Punteggio {
      *           Se la partita era già finita, non cambia niente.
      */
     public void segnaPunto(Lato chi) {
-        if (chi != null && !isFinita()) {
-            if(chi == Lato.SINISTRA){
-                puntiSinistra ++ ;
-                storia.add(chi);
-            }else{
-                puntiDestra ++;
-                storia.add(chi);  
-            }
-            if((puntiDestra >= puntiPerVincere && (puntiDestra - puntiSinistra) >= scartoMinimo) || (puntiSinistra >= puntiPerVincere && (puntiSinistra - puntiDestra) >= scartoMinimo )){
-                    vincitore = chi; 
-                }
+        if(chi == null) throw new IllegalArgumentException("Il lato non può essere null");
+
+        if(isFinita()) return;
+
+        if(chi == Lato.SINISTRA){
+            puntiSinistra ++ ;
+            storia.add(chi);
+        }else{
+            puntiDestra ++;
+            storia.add(chi);  
         }
+        if((puntiDestra >= puntiPerVincere && (puntiDestra - puntiSinistra) >= scartoMinimo) || (puntiSinistra >= puntiPerVincere && (puntiSinistra - puntiDestra) >= scartoMinimo )){
+                vincitore = chi; 
+        }
+
     }
 
     /**
@@ -72,11 +76,13 @@ public class Punteggio {
      * Promette: i punti del lato chi. Non cambia niente.
      */
     public int getPunti(Lato chi) {
+        if(chi != null){
             if(chi == Lato.SINISTRA){
                 return puntiSinistra;
             }else{
                 return puntiDestra; 
             }
+        } else throw new IllegalArgumentException(); 
     }
 
     /**
@@ -146,5 +152,41 @@ public class Punteggio {
         vincitore = null;
         storia = new ArrayList<>();
     
+    }
+
+    /**
+     * Proprietà che valgono sempre (Invariante di Punteggio):
+     * 1. La lista "storia" non contiene mai elementi null.
+     * 2. Lo scarto minimo e i punti per vincere impostati per la vittoria non sono mai minori di 1.
+     * 3. I punti di ciascun giocatore (calcolati scorrendo la storia) corrispondono sempre 
+     *    esattamente a quanto restituito da getPunti().
+     * 4. Se è stato dichiarato un vincitore, questo deve aver raggiunto la soglia dei 
+     *    puntiPerVincere e avere un vantaggio sull'avversario di almeno scartoMinimo punti.
+     */
+
+    public boolean repOK() {
+        // 1. Controllo base
+        if (storia.contains(null)) return false;
+
+        // 2. Controllo scarto minimo e punti per vincere
+        if (scartoMinimo < 1 || puntiPerVincere < 1) return false;
+        
+        // 3. Controllo di coerenza: i punti dichiarati corrispondono alla storia?
+        int d = 0, s = 0;
+        for (int i = 0; i < storia.size(); i++) {
+            if(storia.get(i) == Lato.DESTRA) d++;
+            else s++;
+        }
+        if(getPunti(Lato.DESTRA) != d || getPunti(Lato.SINISTRA) != s) return false;
+
+        // 4. Controllo regole di vittoria
+        Lato vincitore = getVincitore();
+        if (vincitore != null) {
+            Lato perdente = (vincitore == Lato.DESTRA) ? Lato.SINISTRA : Lato.DESTRA;
+            if (getPunti(vincitore) < puntiPerVincere) return false;
+            if (getPunti(vincitore) - getPunti(perdente) < scartoMinimo) return false;
+        }
+        
+        return true;
     }
 }
